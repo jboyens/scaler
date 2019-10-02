@@ -36,6 +36,7 @@ scaling on Wayland systems (does not depend on Wayland)
 		log.Panicf("Can't parse config file: %s - %s\n", configPath, err)
 	}
 
+	// Find templates to deal with
 	templateGlob := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "**/*.tmpl")
 	templates, err := filepath.Glob(templateGlob)
 	if err != nil {
@@ -43,12 +44,7 @@ scaling on Wayland systems (does not depend on Wayland)
 	}
 
 	for _, t := range templates {
-		b, err := ioutil.ReadFile(t)
-		if err != nil {
-			log.Panicf("Can't open template file: %s\n%s\n", t, err)
-		}
-
-		contents := bytes.NewBuffer(b).String()
+		// put together the output path
 		finalPath := filepath.Join(filepath.Dir(t), Basename(t))
 		output, err := os.Create(finalPath)
 		if err != nil {
@@ -56,8 +52,8 @@ scaling on Wayland systems (does not depend on Wayland)
 		}
 		defer ioutil.NopCloser(output)
 
+		// figure out the appname from the XDG directory
 		appName := filepath.Dir(t[len(os.Getenv("XDG_CONFIG_HOME"))+1:])
-
 		c, err := ConfigFor(cfg, appName, direction)
 		if err != nil {
 			log.Panicf("Can't find config for %s - %s\n%s\n", appName, cfg, err)
@@ -65,6 +61,13 @@ scaling on Wayland systems (does not depend on Wayland)
 
 		log.Printf("%s to %s with config %s\n\n", color.YellowString(t), color.YellowString(finalPath), color.RedString("%s", c))
 
+		// prep and execute template
+		b, err := ioutil.ReadFile(t)
+		if err != nil {
+			log.Panicf("Can't open template file: %s\n%s\n", t, err)
+		}
+
+		contents := bytes.NewBuffer(b).String()
 		fileTemplate := template.Must(template.New(t).Parse(contents))
 		err = fileTemplate.Execute(output, c)
 		if err != nil {
